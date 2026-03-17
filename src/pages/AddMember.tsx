@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,30 +11,107 @@ const CLOUDINARY_URL =
   "https://api.cloudinary.com/v1_1/<your_cloud_name>/upload";
 const CLOUDINARY_UPLOAD_PRESET = "<your_upload_preset>";
 
+const schedules = [
+  { value: "mwf-morning", label: "MWF Morning" },
+  { value: "mwf-night", label: "MWF Night" },
+  { value: "tts-morning", label: "TTS Morning" },
+  { value: "tts-night", label: "TTS Night" },
+];
+
 const AddMember = () => {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: "",
     trainingType: "aerobics",
-    trainingSchedule: "mwf-morning",
+    trainingSchedules: [] as string[],
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string>("");
+  const [preview, setPreview] = useState("");
 
-  // Handle form text
+  // Camera refs
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+
+  // Handle text
   const handleChange = (key: string, value: string) => {
     setFormData({ ...formData, [key]: value });
   };
 
-  // Handle image selection
+  // Handle image
   const handleImage = (file: File) => {
     setImageFile(file);
     setPreview(URL.createObjectURL(file));
   };
 
-  // Submit handler
+  // Toggle schedules
+  const toggleSchedule = (value: string) => {
+    setFormData((prev) => {
+      const exists = prev.trainingSchedules.includes(value);
+
+      return {
+        ...prev,
+        trainingSchedules: exists
+          ? prev.trainingSchedules.filter((s) => s !== value)
+          : [...prev.trainingSchedules, value],
+      };
+    });
+  };
+
+  // Open camera
+  const openCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+
+      setCameraOpen(true);
+    } catch (err) {
+      console.error(err);
+      toast.error("Camera access denied");
+    }
+  };
+
+  // Take photo
+  const takePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    ctx.drawImage(video, 0, 0);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+
+      const file = new File([blob], "camera.jpg", {
+        type: "image/jpeg",
+      });
+
+      handleImage(file);
+    });
+
+    // Stop camera
+    const stream = video.srcObject as MediaStream;
+    stream.getTracks().forEach((track) => track.stop());
+
+    setCameraOpen(false);
+  };
+
+  // Submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -43,10 +120,15 @@ const AddMember = () => {
       return;
     }
 
+    if (formData.trainingSchedules.length === 0) {
+      toast.error("Select at least one schedule");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // 1️⃣ Upload image to Cloudinary
+      // Upload to Cloudinary
       const cloudData = new FormData();
       cloudData.append("file", imageFile);
       cloudData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
@@ -61,32 +143,32 @@ const AddMember = () => {
       const cloudJson = await cloudRes.json();
       const imageUrl = cloudJson.secure_url;
 
-      // 2️⃣ Send member data to your backend
+      // Send to backend
       const res = await fetch("http://localhost:5000/api/members", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // If you have JWT auth:
-          // Authorization: `Bearer ${token}`
+          // Authorization: `Bearer ${token}` // if JWT
         },
         body: JSON.stringify({
           fullName: formData.fullName,
           trainingType: formData.trainingType,
-          trainingSchedule: formData.trainingSchedule,
+          trainingSchedules: formData.trainingSchedules,
           imageUrl,
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to save member");
+      if (!res.ok) throw new Error("Failed to save");
 
       toast.success("Member registered successfully!");
 
-      // Reset form
+      // Reset
       setFormData({
         fullName: "",
         trainingType: "aerobics",
-        trainingSchedule: "mwf-morning",
+        trainingSchedules: [],
       });
+
       setImageFile(null);
       setPreview("");
     } catch (err) {
@@ -100,7 +182,7 @@ const AddMember = () => {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-heading font-bold">Register New Member</h1>
+        <h1 className="text-2xl font-bold">Register New Member</h1>
         <p className="text-muted-foreground mt-1">
           Add a new member to Ras Hailu Gym
         </p>
@@ -109,38 +191,68 @@ const AddMember = () => {
       <Card>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Image */}
+            {/* IMAGE */}
             <div className="flex flex-col items-center gap-4">
-              <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center border-2 border-dashed">
+              <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center border overflow-hidden">
                 {preview ? (
-                  <img
-                    src={preview}
-                    className="h-full w-full rounded-full object-cover"
-                  />
+                  <img src={preview} className="h-full w-full object-cover" />
                 ) : (
                   <Camera className="h-8 w-8 text-muted-foreground" />
                 )}
               </div>
 
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={openCamera}>
+                  <Camera className="h-4 w-4 mr-1" />
+                  Camera
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  Upload
+                </Button>
+              </div>
+
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) handleImage(file);
                 }}
-                className="hidden"
-                id="upload"
               />
 
-              <label htmlFor="upload">
-                <Button type="button" variant="outline" size="sm">
-                  <Upload className="h-4 w-4 mr-1" /> Upload
-                </Button>
-              </label>
+              {/* CAMERA VIEW */}
+              {cameraOpen && (
+                <div className="flex flex-col items-center gap-3">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    className="w-64 h-48 rounded border"
+                  />
+
+                  <canvas ref={canvasRef} className="hidden" />
+
+                  <div className="flex gap-2">
+                    <Button onClick={takePhoto}>Capture</Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => setCameraOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Full Name */}
+            {/* NAME */}
             <div>
               <Label>Full Name</Label>
               <Input
@@ -150,7 +262,7 @@ const AddMember = () => {
               />
             </div>
 
-            {/* Training Type */}
+            {/* TRAINING TYPE */}
             <div>
               <Label>Training Type</Label>
               <RadioGroup
@@ -161,41 +273,40 @@ const AddMember = () => {
                 {["aerobics", "machine", "both"].map((type) => (
                   <div key={type} className="flex items-center gap-2">
                     <RadioGroupItem value={type} id={type} />
-                    <Label htmlFor={type} className="capitalize cursor-pointer">
-                      {type}
-                    </Label>
+                    <Label htmlFor={type}>{type}</Label>
                   </div>
                 ))}
               </RadioGroup>
             </div>
 
-            {/* Training Schedule */}
+            {/* MULTIPLE SCHEDULE */}
             <div>
               <Label>Training Schedule</Label>
-              <RadioGroup
-                value={formData.trainingSchedule}
-                onValueChange={(val) => handleChange("trainingSchedule", val)}
-                className="grid grid-cols-2 gap-3"
-              >
-                {["mwf-morning", "mwf-night", "tts-morning", "tts-night"].map(
-                  (s) => (
-                    <div
-                      key={s}
-                      className="flex items-center gap-2 p-3 border rounded"
-                    >
-                      <RadioGroupItem value={s} id={s} />
-                      <Label htmlFor={s} className="cursor-pointer">
-                        {s}
-                      </Label>
-                    </div>
-                  ),
-                )}
-              </RadioGroup>
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                {schedules.map((s) => (
+                  <label
+                    key={s.value}
+                    className={`flex items-center gap-2 p-3 border rounded cursor-pointer ${
+                      formData.trainingSchedules.includes(s.value)
+                        ? "bg-primary/10 border-primary"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.trainingSchedules.includes(s.value)}
+                      onChange={() => toggleSchedule(s.value)}
+                    />
+                    {s.label}
+                  </label>
+                ))}
+              </div>
             </div>
 
+            {/* BUTTON */}
             <Button type="submit" disabled={loading} className="w-full">
               <UserPlus className="mr-2 h-4 w-4" />
-              {loading ? "Saving..." : "Register Member"}
+              {loading ? "Registering..." : "Register Member"}
             </Button>
           </form>
         </CardContent>
