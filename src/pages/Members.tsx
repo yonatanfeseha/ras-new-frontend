@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,26 +19,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Download, Filter, Trash2, ToggleLeft } from "lucide-react";
+import { Search, Download, Trash2, ToggleLeft } from "lucide-react";
 
 type Member = {
-  id: string;
-  memberId: string;
+  id: number;
+  memberId: string; // mapped from ras_id
   name: string;
-  fatherName: string;
-  trainingType: string;
-  schedule: string;
+  fatherName?: string; // optional if backend doesn't provide
+  trainingType?: string;
+  schedule?: string;
   paymentStatus: "paid" | "unpaid" | "warning";
-  lastPayment: string;
+  lastPayment?: string;
+  phone: string;
 };
-
-const sampleMembers: Member[] = [
-  { id: "1", memberId: "RHG-001", name: "Abebe Kebede", fatherName: "Kebede Alemu", trainingType: "Aerobics", schedule: "MWF: Morning", paymentStatus: "paid", lastPayment: "2024-03-01" },
-  { id: "2", memberId: "RHG-002", name: "Dawit Tadesse", fatherName: "Tadesse Hailu", trainingType: "Machine", schedule: "TTS: Night", paymentStatus: "unpaid", lastPayment: "2024-01-15" },
-  { id: "3", memberId: "RHG-003", name: "Meron Assefa", fatherName: "Assefa Gebre", trainingType: "Both", schedule: "MWF: Night", paymentStatus: "warning", lastPayment: "2024-02-10" },
-  { id: "4", memberId: "RHG-004", name: "Sara Bekele", fatherName: "Bekele Desta", trainingType: "Aerobics", schedule: "TTS: Morning", paymentStatus: "paid", lastPayment: "2024-03-05" },
-  { id: "5", memberId: "RHG-005", name: "Yonas Getachew", fatherName: "Getachew Mekonnen", trainingType: "Machine", schedule: "MWF: Morning", paymentStatus: "paid", lastPayment: "2024-03-08" },
-];
 
 const statusStyles: Record<string, string> = {
   paid: "bg-success/10 text-success hover:bg-success/20",
@@ -47,23 +40,76 @@ const statusStyles: Record<string, string> = {
 };
 
 const Members = () => {
+  const [members, setMembers] = useState<Member[]>([]);
   const [search, setSearch] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 10;
 
-  const filtered = sampleMembers.filter((m) => {
-    const matchSearch = !search || m.memberId.toLowerCase().includes(search.toLowerCase()) || m.name.toLowerCase().includes(search.toLowerCase());
-    const matchPayment = paymentFilter === "all" || m.paymentStatus === paymentFilter;
-    const matchType = typeFilter === "all" || m.trainingType.toLowerCase() === typeFilter.toLowerCase();
-    return matchSearch && matchPayment && matchType;
+  // Fetch members from API
+  const fetchMembers = async () => {
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+      const res = await fetch(
+        `http://localhost:5000/members?${params.toString()}`,
+      );
+      const data = await res.json();
+
+      if (data.success) {
+        // Map backend format to frontend format
+        const mapped: Member[] = data.data.map((m: any) => ({
+          id: m.id,
+          memberId: m.ras_id,
+          name: m.name,
+          phone: m.phone,
+          paymentStatus:
+            m.payment_status === 0
+              ? "unpaid"
+              : m.payment_status === 1
+                ? "paid"
+                : "warning",
+          fatherName: "", // optional
+          trainingType: "Unknown", // optional
+          schedule: "Unknown", // optional
+          lastPayment: "", // optional
+        }));
+
+        setMembers(mapped);
+        setTotalPages(data.totalPages || 1);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchMembers();
+  }, [page]);
+
+  // Filtered members based on search & payment
+  const filtered = members.filter((m) => {
+    const matchSearch =
+      !search ||
+      m.memberId.toLowerCase().includes(search.toLowerCase()) ||
+      m.name.toLowerCase().includes(search.toLowerCase());
+    const matchPayment =
+      paymentFilter === "all" || m.paymentStatus === paymentFilter;
+    return matchSearch && matchPayment;
   });
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-heading font-bold">Members</h1>
-          <p className="text-muted-foreground mt-1">{sampleMembers.length} registered members</p>
+          <p className="text-muted-foreground mt-1">
+            {filtered.length} members shown
+          </p>
         </div>
         <Button variant="outline" size="sm">
           <Download className="h-4 w-4 mr-2" /> Export
@@ -94,17 +140,6 @@ const Members = () => {
                 <SelectItem value="warning">Warning</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="aerobics">Aerobics</SelectItem>
-                <SelectItem value="machine">Machine</SelectItem>
-                <SelectItem value="both">Both</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
@@ -117,38 +152,40 @@ const Members = () => {
               <TableRow>
                 <TableHead>ID</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead className="hidden md:table-cell">Father Name</TableHead>
-                <TableHead className="hidden sm:table-cell">Type</TableHead>
-                <TableHead className="hidden lg:table-cell">Schedule</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Last Payment</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((member) => (
                 <TableRow key={member.id}>
-                  <TableCell className="font-mono text-sm">
-                    <Link to={`/members/${member.memberId}`} className="text-primary hover:underline font-semibold cursor-pointer">
+                  <TableCell>
+                    <Link
+                      to={`/members/${member.memberId}`}
+                      className="text-primary hover:underline font-semibold"
+                    >
                       {member.memberId}
                     </Link>
                   </TableCell>
-                  <TableCell className="font-medium">{member.name}</TableCell>
-                  <TableCell className="hidden md:table-cell">{member.fatherName}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{member.trainingType}</TableCell>
-                  <TableCell className="hidden lg:table-cell">{member.schedule}</TableCell>
+                  <TableCell>{member.name}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className={statusStyles[member.paymentStatus]}>
+                    <Badge
+                      variant="secondary"
+                      className={statusStyles[member.paymentStatus]}
+                    >
                       {member.paymentStatus}
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{member.lastPayment}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <ToggleLeft className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -157,7 +194,10 @@ const Members = () => {
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell
+                    colSpan={4}
+                    className="text-center py-8 text-muted-foreground"
+                  >
                     No members found
                   </TableCell>
                 </TableRow>
@@ -166,6 +206,22 @@ const Members = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      <div className="flex justify-center gap-2">
+        <Button disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+          Previous
+        </Button>
+        <span className="px-2 py-1 border rounded">
+          {page} / {totalPages}
+        </span>
+        <Button
+          disabled={page === totalPages}
+          onClick={() => setPage((p) => p + 1)}
+        >
+          Next
+        </Button>
+      </div>
     </div>
   );
 };
