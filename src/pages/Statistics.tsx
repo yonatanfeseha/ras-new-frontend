@@ -1,33 +1,83 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, CreditCard, AlertTriangle, UserCheck, Dumbbell, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Users,
+  CreditCard,
+  AlertTriangle,
+  UserCheck,
+  Dumbbell,
+  Clock,
+} from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
-const stats = {
-  membership: [
-    { label: "Total Members", value: 156, icon: Users, color: "text-primary" },
-    { label: "Paid Members", value: 120, icon: CreditCard, color: "text-success" },
-    { label: "Unpaid Members", value: 24, icon: UserCheck, color: "text-destructive" },
-    { label: "Warning Members", value: 12, icon: AlertTriangle, color: "text-warning" },
-  ],
-  trainingType: [
-    { label: "Aerobics", value: 65, total: 156 },
-    { label: "Machine", value: 58, total: 156 },
-    { label: "Both", value: 33, total: 156 },
-  ],
-  schedule: [
-    { label: "MWF: Morning", value: 42 },
-    { label: "MWF: Night", value: 38 },
-    { label: "TTS: Morning", value: 45 },
-    { label: "TTS: Night", value: 31 },
-  ],
-};
-
 const Statistics = () => {
+  const [stats, setStats] = useState({
+    totalMembers: 0,
+    paid: 0,
+    unpaid: 0,
+    warning: 0,
+    trainingType: [],
+    schedule: [],
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/stats");
+        const data = await res.json();
+
+        if (data.success) {
+          setStats(data);
+        } else {
+          console.error("Failed to fetch stats:", data.message);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) return <p>Loading statistics...</p>;
+
+  const membershipStats = [
+    {
+      label: "Total Members",
+      value: stats.totalMembers,
+      icon: Users,
+      color: "text-primary",
+    },
+    {
+      label: "Paid Members",
+      value: stats.paid,
+      icon: CreditCard,
+      color: "text-success",
+    },
+    {
+      label: "Unpaid Members",
+      value: stats.unpaid,
+      icon: UserCheck,
+      color: "text-destructive",
+    },
+    {
+      label: "Warning Members",
+      value: stats.warning,
+      icon: AlertTriangle,
+      color: "text-warning",
+    },
+  ];
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-heading font-bold">Statistics</h1>
-        <p className="text-muted-foreground mt-1">Overview of membership and training data</p>
+        <p className="text-muted-foreground mt-1">
+          Overview of membership and training data
+        </p>
       </div>
 
       {/* Membership Stats */}
@@ -37,15 +87,21 @@ const Statistics = () => {
           Membership Overview
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.membership.map((stat) => (
+          {membershipStats.map((stat) => (
             <Card key={stat.label} className="stat-card-gradient">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                    <p className="text-3xl font-heading font-bold mt-1">{stat.value}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {stat.label}
+                    </p>
+                    <p className="text-3xl font-heading font-bold mt-1">
+                      {stat.value}
+                    </p>
                   </div>
-                  <div className={`h-12 w-12 rounded-xl bg-background flex items-center justify-center ${stat.color}`}>
+                  <div
+                    className={`h-12 w-12 rounded-xl bg-background flex items-center justify-center ${stat.color}`}
+                  >
                     <stat.icon className="h-6 w-6" />
                   </div>
                 </div>
@@ -63,14 +119,22 @@ const Statistics = () => {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {stats.trainingType.map((item) => (
-            <Card key={item.label}>
+            <Card key={item.type}>
               <CardContent className="pt-6 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-2xl font-heading font-bold">{item.value}</span>
+                  <span className="font-medium">{item.type}</span>
+                  <span className="text-2xl font-heading font-bold">
+                    {item.count}
+                  </span>
                 </div>
-                <Progress value={(item.value / item.total) * 100} className="h-2" />
-                <p className="text-xs text-muted-foreground">{Math.round((item.value / item.total) * 100)}% of total members</p>
+                <Progress
+                  value={(item.count / stats.totalMembers) * 100}
+                  className="h-2"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {Math.round((item.count / stats.totalMembers) * 100)}% of
+                  total members
+                </p>
               </CardContent>
             </Card>
           ))}
@@ -85,10 +149,12 @@ const Statistics = () => {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.schedule.map((item) => (
-            <Card key={item.label}>
+            <Card key={item.schedule}>
               <CardContent className="pt-6 text-center">
-                <p className="text-sm text-muted-foreground">{item.label}</p>
-                <p className="text-3xl font-heading font-bold mt-2">{item.value}</p>
+                <p className="text-sm text-muted-foreground">{item.schedule}</p>
+                <p className="text-3xl font-heading font-bold mt-2">
+                  {item.count}
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">members</p>
               </CardContent>
             </Card>
