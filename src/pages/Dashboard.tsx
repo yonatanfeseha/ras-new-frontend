@@ -1,23 +1,59 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, UserPlus, BarChart3, CreditCard, Dumbbell } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const quickStats = [
-  {
-    label: "Total Members",
-    value: "156",
-    icon: Users,
-    change: "+12 this month",
-  },
-  {
-    label: "Active Payments",
-    value: "120",
-    icon: CreditCard,
-    change: "77% paid",
-  },
-];
-
 const Dashboard = () => {
+  const [stats, setStats] = useState({
+    totalMembers: 0,
+    paid: 0,
+    unpaid: 0,
+    warning: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/stats");
+        const data = await res.json();
+        if (data.success) {
+          setStats({
+            totalMembers: data.totalMembers,
+            paid: parseInt(data.paid),
+            unpaid: parseInt(data.unpaid),
+            warning: parseInt(data.warning),
+          });
+        } else {
+          console.error("Failed to fetch stats:", data.message);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) return <p>Loading dashboard stats...</p>;
+
+  const quickStats = [
+    {
+      label: "Total Members",
+      value: stats.totalMembers,
+      icon: Users,
+      change: `+${stats.totalMembers - stats.paid - stats.unpaid - stats.warning} this month`, // optional dynamic change
+    },
+    {
+      label: "Active Payments",
+      value: stats.paid,
+      icon: CreditCard,
+      change: `${Math.round((stats.paid / stats.totalMembers) * 100) || 0}% paid`,
+    },
+  ];
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -53,7 +89,6 @@ const Dashboard = () => {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        {/* Add Member */}
         <Link to="/add-member">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
             <CardContent className="pt-6 flex items-center gap-4">
@@ -70,7 +105,6 @@ const Dashboard = () => {
           </Card>
         </Link>
 
-        {/* View Members */}
         <Link to="/members">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
             <CardContent className="pt-6 flex items-center gap-4">
@@ -87,7 +121,6 @@ const Dashboard = () => {
           </Card>
         </Link>
 
-        {/* Statistics */}
         <Link to="/statistics">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
             <CardContent className="pt-6 flex items-center gap-4">
@@ -102,7 +135,6 @@ const Dashboard = () => {
           </Card>
         </Link>
 
-        {/* Manage Coaches ✅ NEW */}
         <Link to="/coaches">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
             <CardContent className="pt-6 flex items-center gap-4">
