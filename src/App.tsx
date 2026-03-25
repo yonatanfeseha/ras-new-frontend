@@ -11,6 +11,7 @@ import Statistics from "@/pages/Statistics";
 import MemberProfile from "@/pages/MemberProfile";
 import NotFound from "@/pages/NotFound";
 import AddCoach from "./pages/AddCoach";
+import CoachDetails from "./pages/CoachDetails";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/members/:id" element={<MemberProfile />} />
             <Route path="/statistics" element={<Statistics />} />
             <Route path="/coaches" element={<AddCoach />} />
+            <Route path="/coaches/:id" element={<CoachDetails />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

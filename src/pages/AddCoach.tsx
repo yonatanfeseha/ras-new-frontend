@@ -1,132 +1,99 @@
-import { useState, ChangeEvent, FormEvent } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
-type CoachForm = {
+type Coach = {
+  id: number;
   name: string;
   phone: string;
-  type: string;
+  training_type: string;
   schedule: string;
-  image: string | null;
+  gender: string;
 };
 
-type Coach = CoachForm & {
-  id: number;
-};
+const Coaches = () => {
+  const [coaches, setCoaches] = useState<Coach[]>([]);
+  const [showForm, setShowForm] = useState(false);
 
-const AddCoach = () => {
-  const [form, setForm] = useState<CoachForm>({
-    name: "",
-    phone: "",
-    type: "",
-    schedule: "",
-    image: null,
-  });
+  // fetch coaches
+  useEffect(() => {
+    const fetchCoaches = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/coaches");
+        const data = await res.json();
 
-  const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleImage = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setForm({ ...form, image: URL.createObjectURL(file) });
-    }
-  };
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-
-    const existing: Coach[] = JSON.parse(
-      localStorage.getItem("coaches") || "[]",
-    );
-
-    const newCoach: Coach = {
-      ...form,
-      id: Date.now(),
+        if (data.success) {
+          setCoaches(data.data);
+        }
+      } catch (err) {
+        console.error(err);
+      }
     };
 
-    localStorage.setItem("coaches", JSON.stringify([...existing, newCoach]));
-
-    alert("Coach added successfully!");
-
-    setForm({
-      name: "",
-      phone: "",
-      type: "",
-      schedule: "",
-      image: null,
-    });
-  };
+    fetchCoaches();
+  }, []);
 
   return (
-    <div className="max-w-xl mx-auto">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Coaches</h1>
+        <Button onClick={() => setShowForm(!showForm)}>
+          {showForm ? "Hide Form" : "Add Coach"}
+        </Button>
+      </div>
+
+      {/* Toggle Form */}
+      {showForm && (
+        <Card>
+          <CardContent className="pt-6">
+            <p>👉 You can reuse your form here later</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Coaches Table */}
       <Card>
         <CardContent className="pt-6">
-          <h1 className="text-xl font-bold mb-4">Add Coach</h1>
+          <table className="w-full border">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="p-2">Name</th>
+                <th className="p-2">Training Type</th>
+                <th className="p-2">Schedule</th>
+                <th className="p-2">Gender</th>
+              </tr>
+            </thead>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="text"
-              name="name"
-              placeholder="Full Name"
-              value={form.name}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              required
-            />
+            <tbody>
+              {coaches.map((coach) => (
+                <tr key={coach.id} className="border-b">
+                  <td className="p-2">
+                    <Link
+                      to={`/coaches/${coach.id}`}
+                      className="text-primary font-semibold hover:underline"
+                    >
+                      {coach.name}
+                    </Link>
+                  </td>
+                  <td className="p-2">{coach.training_type}</td>
+                  <td className="p-2">{coach.schedule}</td>
+                  <td className="p-2">{coach.gender}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-            <input
-              type="text"
-              name="phone"
-              placeholder="Phone Number"
-              value={form.phone}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              required
-            />
-
-            <select
-              name="type"
-              value={form.type}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              required
-            >
-              <option value="">Training Type</option>
-              <option value="Aerobics">Aerobics</option>
-              <option value="Machine">Machine</option>
-            </select>
-
-            <input
-              type="text"
-              name="schedule"
-              placeholder="Training Schedule"
-              value={form.schedule}
-              onChange={handleChange}
-              className="w-full p-2 border rounded"
-              required
-            />
-
-            {/* Image Upload / Camera */}
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleImage}
-              className="w-full"
-            />
-
-            <Button type="submit" className="w-full">
-              Save Coach
-            </Button>
-          </form>
+          {coaches.length === 0 && (
+            <p className="text-center mt-4 text-muted-foreground">
+              No coaches found
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 };
 
-export default AddCoach;
+export default Coaches;
