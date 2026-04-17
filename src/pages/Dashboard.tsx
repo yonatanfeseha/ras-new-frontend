@@ -3,6 +3,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Users, UserPlus, BarChart3, CreditCard, Dumbbell } from "lucide-react";
 import { Link } from "react-router-dom";
 
+const api = import.meta.env.VITE_API_URL;
+const token = import.meta.env.VITE_TOKEN;
+
 const Dashboard = () => {
   const [stats, setStats] = useState({
     totalMembers: 0,
@@ -13,29 +16,40 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!token) return;
+
     const fetchStats = async () => {
       try {
-        const res = await fetch("http://localhost:5000/stats");
-        const data = await res.json();
-        if (data.success) {
-          setStats({
-            totalMembers: data.totalMembers,
-            paid: parseInt(data.paid),
-            unpaid: parseInt(data.unpaid),
-            warning: parseInt(data.warning),
-          });
-        } else {
-          console.error("Failed to fetch stats:", data.message);
+        const res = await fetch(`${api}/stats`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.status === 401) {
+          console.error("Unauthorized - token expired");
+          // redirect or refresh token here
+          return;
         }
+
+        const data = await res.json();
+
+        setStats({
+          totalMembers: data.totalMembers,
+          paid: Number(data.paid),
+          unpaid: Number(data.unpaid),
+          warning: Number(data.warning),
+        });
       } catch (err) {
-        console.error(err);
+        console.error("Fetch error:", err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchStats();
-  }, []);
+  }, [token]);
 
   if (loading) return <p>Loading dashboard stats...</p>;
 
