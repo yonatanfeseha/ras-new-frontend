@@ -1,50 +1,5 @@
 import React, { useState } from "react";
-
-const API = "http://localhost:5000/api";
-
-const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-  const token = localStorage.getItem("accessToken");
-
-  let res = await fetch(url, {
-    ...options,
-    headers: {
-      ...(options.headers || {}),
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-  });
-
-  // 🔁 If access token expired → try refresh
-  if (res.status === 401) {
-    const refreshRes = await fetch(`${API}/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-    });
-
-    if (refreshRes.ok) {
-      const data = await refreshRes.json();
-      localStorage.setItem("accessToken", data.accessToken);
-
-      // retry original request
-      res = await fetch(url, {
-        ...options,
-        headers: {
-          ...(options.headers || {}),
-          Authorization: `Bearer ${data.accessToken}`,
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
-    } else {
-      // refresh failed → logout
-      localStorage.removeItem("accessToken");
-      window.location.href = "/login";
-    }
-  }
-
-  return res;
-};
+import { login } from "../auth/authService";
 
 const Login: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -53,12 +8,13 @@ const Login: React.FC = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [e.target.name]: e.target.value,
-    });
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,32 +22,15 @@ const Login: React.FC = () => {
     if (loading) return;
 
     setLoading(true);
+    setError("");
 
     try {
-      const res = await fetch(`${API}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // 🔥 needed for refresh cookie
-        body: JSON.stringify(formData),
-      });
+      await login(formData.id, formData.password);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message || "Login failed");
-        setLoading(false);
-        return;
-      }
-
-      // ✅ store access token
-      localStorage.setItem("accessToken", data.accessToken);
-
-      // 👉 redirect after login
+      // ✅ redirect after login
       window.location.href = "/dashboard";
-    } catch (err) {
-      console.error("Login error:", err);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Login failed. Try again.");
     } finally {
       setLoading(false);
     }
@@ -107,12 +46,18 @@ const Login: React.FC = () => {
           Login
         </h2>
 
+        {/* Error message */}
+        {error && (
+          <div className="mb-4 text-red-500 text-sm text-center">{error}</div>
+        )}
+
         <input
           name="id"
           placeholder="ID"
           value={formData.id}
           onChange={handleChange}
           className="w-full mb-3 px-4 py-2 border rounded-lg"
+          required
         />
 
         <input
@@ -122,9 +67,11 @@ const Login: React.FC = () => {
           value={formData.password}
           onChange={handleChange}
           className="w-full mb-5 px-4 py-2 border rounded-lg"
+          required
         />
 
         <button
+          type="submit"
           disabled={loading}
           className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
         >
