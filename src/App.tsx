@@ -12,7 +12,7 @@ import MemberProfile from "@/pages/MemberProfile";
 import NotFound from "@/pages/NotFound";
 import AddCoach from "./pages/AddCoach";
 import CoachDetails from "./pages/CoachDetails";
-
+import Auth from "./pages/Auth";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -31,6 +31,7 @@ const App = () => (
             <Route path="/coaches" element={<AddCoach />} />
             <Route path="/coaches/:id" element={<CoachDetails />} />
           </Route>
+          <Route path="/auth" element={<Auth />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
