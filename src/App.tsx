@@ -13,18 +13,11 @@ import NotFound from "@/pages/NotFound";
 import AddCoach from "./pages/AddCoach";
 import CoachDetails from "./pages/CoachDetails";
 import Auth from "./pages/Auth";
-import { refresh } from "./auth/authService";
-import { useEffect } from "react";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  useEffect(() => {
-    refresh().catch(() => {
-      console.log("Not logged in");
-    });
-  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

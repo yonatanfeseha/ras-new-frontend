@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, UserPlus, BarChart3, CreditCard, Dumbbell } from "lucide-react";
 import { Link } from "react-router-dom";
+import { getAccessToken } from "@/auth/authStore";
 
 const api = import.meta.env.VITE_API_URL;
 const token = import.meta.env.VITE_TOKEN;
@@ -16,9 +17,14 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!token) return;
-
     const fetchStats = async () => {
+      const token = getAccessToken();
+
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await fetch(`${api}/stats`, {
           method: "GET",
@@ -28,8 +34,7 @@ const Dashboard = () => {
         });
 
         if (res.status === 401) {
-          console.error("Unauthorized - token expired");
-          // redirect or refresh token here
+          console.error("Unauthorized");
           return;
         }
 
@@ -49,7 +54,7 @@ const Dashboard = () => {
     };
 
     fetchStats();
-  }, [token]);
+  }, []);
 
   if (loading) return <p>Loading dashboard stats...</p>;
 

@@ -1,12 +1,19 @@
 import axios from "axios";
 import { getAccessToken, setAccessToken } from "../auth/authStore";
 
+//  Main API instance (used everywhere)
 const api = axios.create({
   baseURL: "https://ras-new-backend.onrender.com/api",
   withCredentials: true,
 });
 
-// attach token
+// Separate instance for refresh (NO interceptors)
+const refreshApi = axios.create({
+  baseURL: "https://ras-new-backend.onrender.com/api",
+  withCredentials: true,
+});
+
+// Attach access token to requests
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
 
@@ -17,29 +24,35 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// auto refresh
+// Handle 401 and refresh token automatically
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // prevent infinite loop
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes("/auth/refresh")
+    ) {
       originalRequest._retry = true;
 
       try {
-        const res = await axios.post(
-          "/auth/refresh",
-          {},
-          { withCredentials: true },
-        );
+        // use refreshApi (no interceptor loop)
+        const res = await refreshApi.post("/auth/refresh");
 
         const newToken = res.data.accessToken;
 
+        // save new access token
         setAccessToken(newToken);
 
+        // retry original request with new token
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
         return api(originalRequest);
       } catch (err) {
+        // refresh failed → user needs to login again
         return Promise.reject(err);
       }
     }

@@ -1,3 +1,5 @@
+//authService.ts
+
 import api from "../api/api";
 import { setAccessToken } from "./authStore";
 
@@ -10,6 +12,12 @@ export const login = async (id: string, password: string) => {
 };
 
 export const refresh = async () => {
-  const res = await api.post("/auth/refresh");
-  setAccessToken(res.data.accessToken);
+  try {
+    const res = await api.post("/auth/refresh");
+    setAccessToken(res.data.accessToken);
+  } catch (err: any) {
+    if (err.response?.status !== 401) {
+      throw err;
+    }
+  }
 };

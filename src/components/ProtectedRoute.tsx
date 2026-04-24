@@ -36,7 +36,7 @@ const ProtectedRoute = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  return <Outlet />; // 🔥 important
+  return <Outlet />;
 };
 
 export default ProtectedRoute;
