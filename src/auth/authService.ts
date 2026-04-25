@@ -15,9 +15,12 @@ export const refresh = async () => {
   try {
     const res = await api.post("/auth/refresh");
     setAccessToken(res.data.accessToken);
+    return res.data;
   } catch (err: any) {
-    if (err.response?.status !== 401) {
-      throw err;
+    if (err.response?.status === 401 || err.response?.status === 403) {
+      return null;
     }
+
+    throw err;
   }
 };

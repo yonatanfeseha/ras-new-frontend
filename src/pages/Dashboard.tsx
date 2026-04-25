@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, UserPlus, BarChart3, CreditCard, Dumbbell } from "lucide-react";
+import {
+  Users,
+  UserPlus,
+  BarChart3,
+  CreditCard,
+  Dumbbell,
+} from "lucide-react";
 import { Link } from "react-router-dom";
-import { getAccessToken } from "@/auth/authStore";
-
-const api = import.meta.env.VITE_API_URL;
-const token = import.meta.env.VITE_TOKEN;
+import api from "@/api/api";
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -14,40 +17,24 @@ const Dashboard = () => {
     unpaid: 0,
     warning: 0,
   });
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
-      const token = getAccessToken();
-
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
       try {
-        const res = await fetch(`${api}/stats`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await api.get("/stats");
 
-        if (res.status === 401) {
-          console.error("Unauthorized");
-          return;
-        }
-
-        const data = await res.json();
+        const data = res.data;
 
         setStats({
-          totalMembers: data.totalMembers,
-          paid: Number(data.paid),
-          unpaid: Number(data.unpaid),
-          warning: Number(data.warning),
+          totalMembers: Number(data.totalMembers) || 0,
+          paid: Number(data.paid) || 0,
+          unpaid: Number(data.unpaid) || 0,
+          warning: Number(data.warning) || 0,
         });
-      } catch (err) {
-        console.error("Fetch error:", err);
+      } catch (error) {
+        console.error("Failed to fetch stats:", error);
       } finally {
         setLoading(false);
       }
@@ -56,20 +43,26 @@ const Dashboard = () => {
     fetchStats();
   }, []);
 
-  if (loading) return <p>Loading dashboard stats...</p>;
+  if (loading) {
+    return <p>Loading dashboard stats...</p>;
+  }
 
   const quickStats = [
     {
       label: "Total Members",
       value: stats.totalMembers,
       icon: Users,
-      change: `+${stats.totalMembers - stats.paid - stats.unpaid - stats.warning} this month`, // optional dynamic change
+      change: `${stats.totalMembers} registered`,
     },
     {
       label: "Active Payments",
       value: stats.paid,
       icon: CreditCard,
-      change: `${Math.round((stats.paid / stats.totalMembers) * 100) || 0}% paid`,
+      change: `${
+        Math.round(
+          (stats.paid / stats.totalMembers) * 100,
+        ) || 0
+      }% paid`,
     },
   ];
 
@@ -77,24 +70,37 @@ const Dashboard = () => {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-heading font-bold">Welcome back 👋</h1>
+        <h1 className="text-2xl font-heading font-bold">
+          Welcome back 👋
+        </h1>
+
         <p className="text-muted-foreground mt-1">
-          Here's what's happening at Ras Hailu Gym today
+          Here's what's happening at Ras Hailu
+          Gym today
         </p>
       </div>
 
-      {/* Quick Stats */}
+      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {quickStats.map((stat) => (
-          <Card key={stat.label} className="stat-card-gradient">
+          <Card
+            key={stat.label}
+            className="stat-card-gradient"
+          >
             <CardContent className="pt-6">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {stat.label}
+                  </p>
+
                   <p className="text-3xl font-heading font-bold mt-1">
                     {stat.value}
                   </p>
-                  <p className="text-xs text-primary mt-2">{stat.change}</p>
+
+                  <p className="text-xs text-primary mt-2">
+                    {stat.change}
+                  </p>
                 </div>
 
                 <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
@@ -114,8 +120,12 @@ const Dashboard = () => {
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                 <UserPlus className="h-6 w-6" />
               </div>
+
               <div>
-                <p className="font-heading font-semibold">Add Member</p>
+                <p className="font-heading font-semibold">
+                  Add Member
+                </p>
+
                 <p className="text-sm text-muted-foreground">
                   Register a new member
                 </p>
@@ -130,8 +140,12 @@ const Dashboard = () => {
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                 <Users className="h-6 w-6" />
               </div>
+
               <div>
-                <p className="font-heading font-semibold">View Members</p>
+                <p className="font-heading font-semibold">
+                  View Members
+                </p>
+
                 <p className="text-sm text-muted-foreground">
                   Manage all members
                 </p>
@@ -146,9 +160,15 @@ const Dashboard = () => {
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                 <BarChart3 className="h-6 w-6" />
               </div>
+
               <div>
-                <p className="font-heading font-semibold">Statistics</p>
-                <p className="text-sm text-muted-foreground">View analytics</p>
+                <p className="font-heading font-semibold">
+                  Statistics
+                </p>
+
+                <p className="text-sm text-muted-foreground">
+                  View analytics
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -160,8 +180,12 @@ const Dashboard = () => {
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                 <Dumbbell className="h-6 w-6" />
               </div>
+
               <div>
-                <p className="font-heading font-semibold">Manage Coaches</p>
+                <p className="font-heading font-semibold">
+                  Manage Coaches
+                </p>
+
                 <p className="text-sm text-muted-foreground">
                   Add and manage coaches
                 </p>

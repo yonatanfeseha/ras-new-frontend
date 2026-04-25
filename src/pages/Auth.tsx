@@ -1,7 +1,10 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { login } from "../auth/authService";
 
 const Login: React.FC = () => {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     id: "",
     password: "",
@@ -19,6 +22,7 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (loading) return;
 
     setLoading(true);
@@ -27,8 +31,9 @@ const Login: React.FC = () => {
     try {
       await login(formData.id, formData.password);
 
-      // ✅ redirect after login
-      window.location.href = "/dashboard";
+      navigate("/dashboard", {
+        replace: true,
+      });
     } catch (err: any) {
       setError(err?.response?.data?.message || "Login failed. Try again.");
     } finally {

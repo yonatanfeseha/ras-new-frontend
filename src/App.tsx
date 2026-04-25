@@ -25,21 +25,20 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Protected routes */}
+            {/* public */}
+            <Route path="/auth" element={<Auth />} />
+
+            {/* protected */}
             <Route element={<ProtectedRoute />}>
               <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/add-member" element={<AddMember />} />
                 <Route path="/members" element={<Members />} />
-                <Route path="/members/:id" element={<MemberProfile />} />
                 <Route path="/statistics" element={<Statistics />} />
                 <Route path="/coaches" element={<AddCoach />} />
-                <Route path="/coaches/:id" element={<CoachDetails />} />
               </Route>
             </Route>
 
-            {/* Public routes */}
-            <Route path="/" element={<Auth />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

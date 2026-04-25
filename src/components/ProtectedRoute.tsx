@@ -17,14 +17,10 @@ const ProtectedRoute = () => {
         return;
       }
 
-      try {
-        await refresh();
-        setIsAuthenticated(true);
-      } catch {
-        setIsAuthenticated(false);
-      } finally {
-        setLoading(false);
-      }
+      const refreshed = await refresh();
+
+      setIsAuthenticated(!!refreshed);
+      setLoading(false);
     };
 
     checkAuth();
